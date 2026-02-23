@@ -1,110 +1,92 @@
-// function validatePassword(password) {
-//   const minLength = 8;
-//   const hasLowercase = /[a-z]/.test(password);
-//   const hasUppercase = /[A-Z]/.test(password);
-//   const hasNumber = /[0-9]/.test(password);
-//   const hasSpecialChar = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~` ]/.test(password);
-
-//   if (password.length < minLength) return `Password must be at least ${minLength} characters long.`;
-//   if (!hasLowercase) return 'Password must contain at least one lowercase letter.';
-//   if (!hasUppercase) return 'Password must contain at least one uppercase letter.';
-//   if (!hasNumber) return 'Password must contain at least one number.';
-//   if (!hasSpecialChar) return 'Password must contain at least one special character (!@#$%^&*...).';
-//   return null;
-// }
-
-// context/authContext.js
-// context/AuthContext.js
 'use client';
 
-import { createContext, useContext, useState } from "react";
-import { useRouter } from "next/navigation"
+import { createContext, useContext, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    if (typeof window !== "undefined") {
-      const storedUser = localStorage.getItem("app_user");
-      return storedUser ? JSON.parse(storedUser) : null;
-    }
-    return null;
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const saveUser = (userData) => {
-    setUser(userData);
-    localStorage.setItem("app_user", JSON.stringify(userData));
-  };
+  useEffect(() => {
+    // 1. Define the function to sync user data
+    const syncUser = async (session) => {
+      if (!session?.user) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
 
-  const login = async (email, password, role) => {
-    // Mock login - in production, this would call your backend
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newUser = {
-      id: email, // Use email as consistent ID for filtering queues/data
-      name: email.split("@")[0],
-      email,
-      role,
-      businessName: role === "business" ? "Sample Business" : undefined,
+      try {
+        // Try to get the profile, but don't let it block the app if it fails
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        if (error) {
+          console.warn("Profile not found, using session data instead");
+          // Fallback to basic session data if profile table fetch fails
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            full_name: session.user.user_metadata?.full_name || "User",
+            is_business: session.user.user_metadata?.is_business || false
+          });
+        } else {
+          setUser(data);
+        }
+      } catch (e) {
+        console.error("Sync error:", e);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    saveUser(newUser)
+    // 2. Run initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncUser(session);
+    });
+
+    // 3. Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncUser(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    router.push('/dashboard');
   };
 
-  const signUp = async (name, email, password) => {
-    // Mock signup
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newUser = {
-      id: email, // Use email as consistent ID
-      name,
-      email,
-      role: "user",
-    };
-
-    saveUser(newUser);
-  };
-
-  const registerBusiness = async (
-    name,
-    email,
-    password,
-    businessName,
-    category
-  ) => {
-    // Mock business registration
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const newUser = {
-      id: email, // Use email as consistent ID for queue filtering
-      name,
-      email,
-      role: "business",
-      businessName,
-      category,
-    };
-
-    saveUser(newUser);
-  };
-
-  const logOut = () => {
-    localStorage.removeItem("app_user");
+  const logOut = async () => {
+    setLoading(true);
+    await supabase.auth.signOut();
     setUser(null);
+    setLoading(false);
     router.push("/");
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signUp, registerBusiness, logOut }}>
-      {children}
+    <AuthContext.Provider value={{ user, loading, login, logOut }}>
+      {!loading ? children : (
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'white' }}>
+           <p>Loading QueueFlow...</p>
+        </div>
+      )}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (context === undefined) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }

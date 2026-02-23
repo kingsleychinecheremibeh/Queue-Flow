@@ -1,22 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Building2, Eye, EyeOff }  from "lucide-react";
+import { Building2, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
-export default function BusinessRegister()  {
-  const { registerBusiness } = useAuth();
-  const [name, setName] = useState("");
+export default function BusinessRegister() {
+  const { registerBusiness, user } = useAuth();
   const router = useRouter();
+
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [category, setCategory] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [showPassword, setShowPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Automatic redirect if session exists
+  useEffect(() => {
+    if (user) {
+      router.push(user.is_business ? "/business/dashboard" : "/user/dashboard");
+    }
+  }, [user, router]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,13 +32,16 @@ export default function BusinessRegister()  {
     setLoading(true);
 
     try {
+      // This sends the metadata to Supabase to trigger our SQL profile creation
       await registerBusiness(name, email, password, businessName, category);
-      router.push("/business/dashboard");
+      alert("Check your email for a confirmation link!");
+      router.push("/login");
+      // router.push is handled by the useEffect above
     } catch (err) {
       console.error("Registration failed", err);
-      setError(err.message || "Registration failed");
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
-      setLoading(true);
+      setLoading(false); // Fixed: was true
     }
   };
 
@@ -51,28 +62,30 @@ export default function BusinessRegister()  {
               <input 
                 type="text"
                 required
-                placeholder="Name"
+                placeholder="Your Full Name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-3000 rounded-lg " 
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
               />  
             </div>
+
             <div>
               <input 
                 type="text"
                 required
-                placeholder="Business name"
+                placeholder="Business Name (e.g., City Clinic)"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-3000 rounded-lg " 
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all" 
               />  
             </div>
+
             <div>
               <select 
                 required
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all bg-white"
               >
                 <option value="">Select a category</option>
                 <option value="Healthcare">Healthcare</option>
@@ -89,10 +102,10 @@ export default function BusinessRegister()  {
               <input
                 type="email"
                 required
-                placeholder="enter your email"
+                placeholder="Business Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               />  
             </div>
 
@@ -103,32 +116,36 @@ export default function BusinessRegister()  {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
-                className='w-full p-2 border rounded pr-10'
+                className='w-full px-4 py-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition-all pr-12'
               />
               <button
                 type='button'
                 onClick={() => setShowPassword(!showPassword)}
-                className='absolute right-2 cursor-pointer top-1/2  transform -translate-y-1/2 text-gray-500 hover:text-gray-700'
+                className='absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700'
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
 
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm font-medium text-center">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 shadow-lg transform active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Registering..." : "Register Business"}
             </button>  
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 font-medium">
               Already registered?{" "}
-              <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link href="/login" className="text-blue-600 hover:text-blue-700 font-bold">
                 Sign in
               </Link>
             </p>

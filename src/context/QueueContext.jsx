@@ -1,265 +1,165 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "./AuthContext";
 
 const QueueContext = createContext(undefined);
 
 export function QueueProvider({ children }) {
-  const [queues, setQueues] = useState(() => {
-    // Try to load from localStorage first
-    if (typeof window !== "undefined") {
-      const savedQueues = localStorage.getItem("app_queues");
-      if (savedQueues) {
-        try {
-          return JSON.parse(savedQueues);
-        } catch (e) {
-          console.error("Failed to load queues from localStorage:", e);
-        }
-      }
-    }
+  const [queues, setQueues] = useState([]);
+  const { user } = useAuth();
+  const channelRef = useRef(null);
 
-    // Default initial queues if nothing in localStorage
-    const now = Date.now();
-    return [
-      {
-        id: "q1",
-        businessId: "b1",
-        businessName: "City Hospital",
-        category: "Healthcare",
-        currentQueueLength: 8,
-        averageServiceTime: 15,
-        isOpen: true,
-        items: [
-          {
-            id: "qi1",
-            userId: "u1",
-            userName: "Kingsley Ibeh",
-            joinedAt: now - 20 * 60000,
-            estimatedWaitTime: 10,
-            status: "waiting",
-            position: 1,
-          },
-          {
-            id: "qi2",
-            userId: "u2",
-            userName: "Micheal Olawoye",
-            joinedAt: now - 15 * 60000,
-            estimatedWaitTime: 25,
-            status: "waiting",
-            position: 2,
-          },
-          {
-            id: "qi3",
-            userId: "u3",
-            userName: "Mike Johnson",
-            joinedAt: now - 10 * 60000,
-            estimatedWaitTime: 40,
-            status: "waiting",
-            position: 3,
-          },
-        ],
-      },
-      {
-        id: "q2",
-        businessId: "b2",
-        businessName: "DMV Center",
-        category: "Government",
-        currentQueueLength: 12,
-        averageServiceTime: 20,
-        isOpen: true,
-        items: [],
-      },
-      {
-        id: "q3",
-        businessId: "b3",
-        businessName: "Popular Restaurant",
-        category: "Restaurant",
-        currentQueueLength: 5,
-        averageServiceTime: 30,
-        isOpen: true,
-        items: [],
-      },
-    ];
-  });
-
-  // Persist queues to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("app_queues", JSON.stringify(queues));
-    }
-  }, [queues]);
-
-  // Simulate real-time updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setQueues((prevQueues) =>
-        prevQueues.map((queue) => ({
-          ...queue,
-          items: queue.items.map((item, index) => ({
-            ...item,
-            position: index + 1,
-            estimatedWaitTime: (index + 1) * queue.averageServiceTime,
-          })),
-        }))
-      );
-    }, 5000);
-
-    return () => clearInterval(interval);
+  const safeSort = useCallback((items) => {
+    return [...(items || [])].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeA - timeB;
+    });
   }, []);
 
-  const addQueue = (queueData) => {
-    const newQueue = {
-      ...queueData,
-      id: Math.random().toString(36).substr(2, 9),
-      items: [],
-      currentQueueLength: 0,
+  // INITIAL LOAD
+  useEffect(() => {
+    async function initFetch() {
+      const { data, error } = await supabase
+        .from('queues')
+        .select(`*, items:queue_entries (*, profiles:user_id (full_name))`)
+        .eq('is_archived', false)
+        .order('created_at', { ascending: true });
+
+      if (!error && data) {
+        const formatted = data.map(q => ({ ...q, items: safeSort(q.items) }));
+        setQueues(formatted);
+      }
+    }
+    initFetch();
+  }, [safeSort]);
+
+  // REALTIME SYNC
+  useEffect(() => {
+    let isMounted = true;
+    const channel = supabase.channel('queue-global-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries' }, async (payload) => {
+        if (!isMounted) return;
+        // ... (existing entry notification/logic remains same)
+        fetchUpdatedEntries(payload); 
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, (payload) => {
+        if (!isMounted) return;
+        handleQueueChange(payload);
+      })
+      .subscribe();
+
+    return () => { isMounted = false; supabase.removeChannel(channel); };
+  }, [user?.id]);
+
+  // --- API METHODS ---
+
+  const createQueue = async (queueData) => {
+    if (!user) return { error: { message: "User session not found" } };
+
+    const payload = {
+      queue_name: queueData.queue_name,
+      category: queueData.category,
+      average_service_time: parseInt(queueData.average_service_time) || 10,
+      business_id: user.id,
+      business_name: user.business_name || user.full_name || "Business",
+      is_archived: false,
+      is_open: true
     };
-    setQueues((prev) => [...prev, newQueue]);
+
+    const { data, error } = await supabase
+      .from('queues')
+      .insert([payload])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Critical Create Error:", error.message);
+      return { error };
+    }
+
+    setQueues(prev => [...prev, { ...data, items: [] }]);
+    return { data, error: null };
   };
 
-  const joinQueue = (queueId, userName, userId) => {
-    setQueues((prevQueues) =>
-      prevQueues.map((queue) => {
-        if (queue.id === queueId) {
-          // Prevent duplicate join
-          if (queue.items.some((i) => i.userId === userId)) return queue;
-
-          const newItem = {
-            id: crypto.randomUUID().slice(0, 8),
-            userId,
-            userName,
-            joinedAt: Date.now(), // Use timestamp instead of Date object
-            estimatedWaitTime: (queue.items.length + 1) * queue.averageServiceTime,
-            status: "waiting",
-            position: queue.items.length + 1,
-          };
-          return {
-            ...queue,
-            items: [...queue.items, newItem],
-            currentQueueLength: queue.items.length + 1,
-          };
-        }
-        return queue;
-      })
-    );
+  const archiveQueue = async (queueId) => {
+    setQueues(prev => prev.filter(q => q.id !== queueId));
+    await supabase.from('queues').update({ 
+      is_archived: true, 
+      is_open: false, 
+      archived_at: new Date().toISOString() 
+    }).eq('id', queueId);
   };
 
-  const leaveQueue = (queueId, userId) => {
-    setQueues((prevQueues) =>
-      prevQueues.map((queue) => {
-        if (queue.id === queueId) {
-          // Remove the user from the queue
-          const updatedItems = queue.items.filter((item) => item.userId !== userId);
-          // Recalculate positions and estimated wait times
-          const recalculatedItems = updatedItems.map((item, index) => ({
-            ...item,
-            position: index + 1,
-            estimatedWaitTime: (index + 1) * queue.averageServiceTime,
-          }));
-          return {
-            ...queue,
-            items: recalculatedItems,
-            currentQueueLength: recalculatedItems.length,
-          };
-        }
-        return queue;
-      })
-    );
+  const toggleQueueStatus = async (queueId, isOpen) => {
+    setQueues(prev => prev.map(q => q.id === queueId ? { ...q, is_open: isOpen } : q));
+    await supabase.from('queues').update({ is_open: isOpen }).eq('id', queueId);
   };
 
-  const callNext = (queueId) => {
-    setQueues((prevQueues) =>
-      prevQueues.map((queue) => {
-        if (queue.id === queueId && queue.items.length > 0) {
-          const updatedItems = [...queue.items];
-          if (updatedItems[0]) {
-            updatedItems[0] = { ...updatedItems[0], status: "called" };
-          }
-          return { ...queue, items: updatedItems };
-        }
-        return queue;
-      })
-    );
+  const completeService = async (entryId) => {
+    await supabase.from('queue_entries').update({ 
+      status: 'completed', 
+      completed_at: new Date().toISOString() 
+    }).eq('id', entryId);
   };
 
-  const completeService = (queueId, itemId) => {
-    setQueues((prevQueues) =>
-      prevQueues.map((queue) => {
-        if (queue.id === queueId) {
-          const updatedItems = queue.items.filter((item) => item.id !== itemId);
-          return {
-            ...queue,
-            items: updatedItems,
-            currentQueueLength: updatedItems.length,
-          };
-        }
-        return queue;
-      })
-    );
+  const callNext = async (queueId) => {
+    const queue = queues.find(q => q.id === queueId);
+    const nextItem = queue?.items?.find(i => i.status === 'waiting');
+    if (nextItem) {
+      await supabase.from('queue_entries').update({ 
+        status: 'serving', 
+        called_at: new Date().toISOString() 
+      }).eq('id', nextItem.id);
+    }
   };
 
-  const getQueueById = (queueId) => queues.find((q) => q.id === queueId);
-
-  const getBusinessQueues = (businessId) => {
-    return queues.filter((q) => q.businessId === businessId);
+  const joinQueue = async (queueId) => {
+    const target = queues.find(q => q.id === queueId);
+    if (!target || !user) return;
+    await supabase.from('queue_entries').insert([{ 
+      queue_id: queueId, 
+      user_id: user.id, 
+      business_id: target.business_id, 
+      status: 'waiting' 
+    }]);
   };
 
-  const createQueue = (businessId, businessName, queueName, category, averageServiceTime) => {
-    const newQueue = {
-      id: `q_${Math.random().toString(36).substr(2, 9)}`,
-      businessId,
-      businessName,
-      queueName,
-      category,
-      currentQueueLength: 0,
-      averageServiceTime,
-      isOpen: true,
-      items: [],
-    };
-    setQueues((prev) => [...prev, newQueue]);
-    return newQueue;
+  const leaveQueue = async (queueId) => {
+    if (!user) return;
+    await supabase.from('queue_entries').delete()
+      .eq('queue_id', queueId)
+      .eq('user_id', user.id)
+      .neq('status', 'completed');
   };
 
-  const toggleQueueStatus = (queueId) => {
-    setQueues((prevQueues) =>
-      prevQueues.map((queue) =>
-        queue.id === queueId ? { ...queue, isOpen: !queue.isOpen } : queue
-      )
-    );
-  };
-
-  const getUserPosition = (queueId, userId) => {
-    const queue = queues.find((q) => q.id === queueId);
+  const getQueueData = useCallback((queueId) => {
+    const queue = queues.find(q => q.id === queueId);
     if (!queue) return null;
-    const item = queue.items.find((i) => i.userId === userId);
-    return item ? item.position : null;
-  };
+    const waitingList = queue.items?.filter(item => item.status === 'waiting') || [];
+    const userEntry = queue.items?.find(item => item.user_id === user?.id && item.status !== 'completed');
+    return { 
+      ...queue, 
+      userEntry, 
+      position: userEntry ? waitingList.findIndex(i => i.id === userEntry.id) + 1 : 0, 
+      waitCount: waitingList.length 
+    };
+  }, [queues, user?.id]);
 
   return (
-    <QueueContext.Provider
-      value={{
-        queues,
-        addQueue,
-        joinQueue,
-        leaveQueue,
-        callNext,
-        completeService,
-        getQueueById,
-        getBusinessQueues,
-        createQueue,
-        toggleQueueStatus,
-        getUserPosition,
-      }}
-    >
+    <QueueContext.Provider value={{ 
+      queues, createQueue, archiveQueue, toggleQueueStatus, 
+      completeService, callNext, joinQueue, leaveQueue, getQueueData 
+    }}>
       {children}
     </QueueContext.Provider>
   );
 }
 
-export function useQueue() {
+export const useQueue = () => {
   const context = useContext(QueueContext);
-  if (context === undefined) {
-    throw new Error("useQueue must be used within a QueueProvider");
-  }
+  if (!context) throw new Error("useQueue must be used within a QueueProvider");
   return context;
-}
+};

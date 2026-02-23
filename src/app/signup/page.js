@@ -1,24 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { UserPlus, Eye, EyeOff } from "lucide-react";
+import { UserPlus, Eye, EyeOff, User } from "lucide-react";
 import Link from "next/link";
 
-
 export default function SignupPage() {
-  const { signUp } = useAuth();
+  const { signUp, user } = useAuth();
   const router = useRouter();
-  const [name, setName ] = useState("");
+  
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  //const [role, setRole] = useState("customer");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      router.push(user.is_business ? "/business/dashboard" : "/user/dashboard");
+    }
+  }, [user, router]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -32,10 +38,12 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
+      // Passes name, email, and password to our refactored AuthContext
       await signUp(name, email, password);
-      router.push("/user/dashboard");
-    } catch (error) {
-      console.error("Signup failed", error);
+      // Note: Redirection is handled by the useEffect above once Supabase confirms the session
+    } catch (err) {
+      console.error("Signup failed", err);
+      setError(err.message || "Failed to create account. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -53,13 +61,28 @@ export default function SignupPage() {
         </div>
 
         <form onSubmit={handleSignup} className="space-y-5">
+          {/* Full Name Input */}
+          <div className="relative">
+             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+               <User size={18} />
+             </div>
+             <input
+              type="text"
+              required
+              placeholder="Full Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full pl-10 p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
           <input
             type="email"
             required
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full p-2 border rounded"
+            className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
 
           {/* Password */}
@@ -70,7 +93,7 @@ export default function SignupPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-2 border rounded pr-10"
+              className="w-full p-2 border rounded-lg pr-10 focus:ring-2 focus:ring-blue-500 outline-none"
             />
             <button
               type="button"
@@ -81,8 +104,8 @@ export default function SignupPage() {
             </button>
           </div>
 
-          <p className="text-xs text-gray-500">
-            Must be 8+ characters, include uppercase, number & symbol
+          <p className="text-[10px] text-gray-500 italic">
+            Recommended: 8+ characters, uppercase, number & symbol
           </p>
 
           {/* Confirm Password */}
@@ -93,7 +116,7 @@ export default function SignupPage() {
               placeholder="Confirm Password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full p-2 border rounded pr-10"
+              className="w-full p-2 border rounded-lg pr-10 focus:ring-2 focus:ring-blue-500 outline-none"
             />
             <button
               type="button"
@@ -104,37 +127,27 @@ export default function SignupPage() {
             </button>
           </div>
 
-          {/* Role
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full p-2 border rounded text-gray-900"
-          >
-            <option value="customer">Customer</option>
-            <option value="business">Business</option>
-          </select> */}
-
-          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {error && <p className="text-red-500 text-sm font-medium text-center">{error}</p>}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+            className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition-all shadow-md disabled:bg-blue-400"
           >
             {loading ? "Creating account..." : "Create Account"}
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-8 text-center space-y-3">
           <p className="text-sm text-gray-600">
             Already have an account?{" "}
-            <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/login" className="text-blue-600 hover:text-blue-700 font-bold">
               Sign in
             </Link>
           </p> 
-          <p className="text-sm text-gray-600 mt-2">
+          <p className="text-sm text-gray-600">
             Have a business?{" "}
-            <Link href="/business-register" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/business-register" className="text-blue-600 hover:text-blue-700 font-bold">
               Register as business
             </Link>
           </p> 
