@@ -185,7 +185,7 @@ export default function QueueManagement() {
                 {waitingCustomers.length} waiting
               </span>
             </div>
-            <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            <div className="space-y-3 max-h-125 overflow-y-auto">
               {waitingCustomers.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

@@ -36,7 +36,7 @@ export default function UserDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">QueueFlow</h1>
-                {user &&<p className="text-xs text-gray-500">{user.email}</p>}
+                <p className="text-xs text-gray-500">{user?.email}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">

@@ -258,7 +258,7 @@ export default function BusinessAnalytics() {
 
           {/* Insights */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
+            <div className="bg-linear-to-br from-blue-600 to-indigo-600 rounded-xl p-6 text-white">
               <h3 className="text-lg font-semibold mb-2">🎯 Key Insight</h3>
               <p className="text-blue-100 mb-4">
                 Your busiest time is 2-3 PM with an average of 22 customers. Consider adding more
@@ -269,7 +269,7 @@ export default function BusinessAnalytics() {
               </button>
             </div>
 
-            <div className="bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl p-6 text-white">
+            <div className="bg-linear-to-br from-green-600 to-emerald-600 rounded-xl p-6 text-white">
               <h3 className="text-lg font-semibold mb-2">📈 Performance</h3>
               <p className="text-green-100 mb-4">
                 Great job! You&#39;ve served 18% more customers this month compared to last month.

@@ -1,27 +1,36 @@
 'use client';
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useQueue } from "@/context/QueueContext";
 import { ArrowLeft, Users, Clock, Activity, AlertCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function QueueView({ params }) {
-  const { queueId } = params;
+  const pathname = usePathname();
+  const queueId = pathname.split('/').pop(); // Extract queue ID from URL path
   const { user } = useAuth();
-  const { getQueueById } = useQueue();
+  const { getQueueById, leaveQueue } = useQueue();
   const router = useRouter();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   const queue = queueId ? getQueueById(queueId) : undefined;
   const myPosition = queue?.items.find((item) => item.userId === user?.id);
 
+  const handleLeaveQueue = () => {
+    if (window.confirm('Are you sure you want to leave this queue?')) {
+      leaveQueue(queueId, user.id);
+      router.push('/user/dashboard');
+    }
+  };
+
   useEffect(() => {
+    console.log("Logged in user:", user)
     const interval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
 
   if (!queue) {
     return (
@@ -47,7 +56,7 @@ export default function QueueView({ params }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -78,14 +87,15 @@ export default function QueueView({ params }) {
 
         {/* Your Position Card */}
         {myPosition && (
-          <div className="bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-8 mb-6 text-white">
+          <div className="bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-8 mb-6 text-white">
             <div className="text-center">
               <p className="text-blue-100 mb-2">Your Position</p>
               <div className="text-7xl font-bold mb-4">#{myPosition.position}</div>
-              <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-2 backdrop-blur-sm">
+              <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-4 py-2 backdrop-blur-sm mb-6">
                 <Clock className="w-5 h-5" />
                 <span className="font-medium">Estimated wait: {myPosition.estimatedWaitTime} minutes</span>
               </div>
+              
             </div>
           </div>
         )}
@@ -94,7 +104,7 @@ export default function QueueView({ params }) {
         {myPosition?.position === 1 && (
           <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" />
+              <AlertCircle className="w-6 h-6 text-green-600 shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-semibold text-green-900">You`re Next!</h3>
                 <p className="text-sm text-green-700 mt-1">Please be ready. You`ll be called soon.</p>
@@ -141,6 +151,16 @@ export default function QueueView({ params }) {
             </div>
           </div>
         </div>
+        
+        {myPosition && (
+          <button
+            onClick={() => {leaveQueue(queue.id, user.id); router.push("/user/dashboard");}}
+            className="my-4 w-full py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Leave Queue
+          </button>
+        )}
+        
 
         {/* Live Queue Display */}
         <div className="bg-white rounded-2xl shadow-lg p-6">

@@ -23,30 +23,47 @@ import { useRouter } from "next/navigation"
 const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    if (typeof window !== "undefined") {
+      const storedUser = localStorage.getItem("app_user");
+      return storedUser ? JSON.parse(storedUser) : null;
+    }
+    return null;
+  });
   const router = useRouter();
+
+  const saveUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem("app_user", JSON.stringify(userData));
+  };
 
   const login = async (email, password, role) => {
     // Mock login - in production, this would call your backend
     await new Promise(resolve => setTimeout(resolve, 500));
-    setUser({
-      id: crypto.randomUUID().slice(0, 8),
+    
+    const newUser = {
+      id: email, // Use email as consistent ID for filtering queues/data
       name: email.split("@")[0],
       email,
       role,
       businessName: role === "business" ? "Sample Business" : undefined,
-    });
+    };
+
+    saveUser(newUser)
   };
 
   const signUp = async (name, email, password) => {
     // Mock signup
     await new Promise(resolve => setTimeout(resolve, 500));
-    setUser({
-      id: crypto.randomUUID().slice(0, 8),
+    
+    const newUser = {
+      id: email, // Use email as consistent ID
       name,
       email,
       role: "user",
-    });
+    };
+
+    saveUser(newUser);
   };
 
   const registerBusiness = async (
@@ -58,18 +75,23 @@ export function AuthProvider({ children }) {
   ) => {
     // Mock business registration
     await new Promise(resolve => setTimeout(resolve, 500));
-    setUser({
-      id: crypto.randomUUID().slice(0, 8),
+    
+    const newUser = {
+      id: email, // Use email as consistent ID for queue filtering
       name,
       email,
       role: "business",
       businessName,
-    });
+      category,
+    };
+
+    saveUser(newUser);
   };
 
   const logOut = () => {
-    router.push("/")
+    localStorage.removeItem("app_user");
     setUser(null);
+    router.push("/");
   };
 
   return (

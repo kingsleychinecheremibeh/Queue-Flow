@@ -6,6 +6,19 @@ const QueueContext = createContext(undefined);
 
 export function QueueProvider({ children }) {
   const [queues, setQueues] = useState(() => {
+    // Try to load from localStorage first
+    if (typeof window !== "undefined") {
+      const savedQueues = localStorage.getItem("app_queues");
+      if (savedQueues) {
+        try {
+          return JSON.parse(savedQueues);
+        } catch (e) {
+          console.error("Failed to load queues from localStorage:", e);
+        }
+      }
+    }
+
+    // Default initial queues if nothing in localStorage
     const now = Date.now();
     return [
       {
@@ -20,8 +33,8 @@ export function QueueProvider({ children }) {
           {
             id: "qi1",
             userId: "u1",
-            userName: "John Doe",
-            joinedAt: new Date(now - 20 * 60000),
+            userName: "Kingsley Ibeh",
+            joinedAt: now - 20 * 60000,
             estimatedWaitTime: 10,
             status: "waiting",
             position: 1,
@@ -29,8 +42,8 @@ export function QueueProvider({ children }) {
           {
             id: "qi2",
             userId: "u2",
-            userName: "Jane Smith",
-            joinedAt: new Date(now - 15 * 60000),
+            userName: "Micheal Olawoye",
+            joinedAt: now - 15 * 60000,
             estimatedWaitTime: 25,
             status: "waiting",
             position: 2,
@@ -39,7 +52,7 @@ export function QueueProvider({ children }) {
             id: "qi3",
             userId: "u3",
             userName: "Mike Johnson",
-            joinedAt: new Date(now - 10 * 60000),
+            joinedAt: now - 10 * 60000,
             estimatedWaitTime: 40,
             status: "waiting",
             position: 3,
@@ -68,6 +81,13 @@ export function QueueProvider({ children }) {
       },
     ];
   });
+
+  // Persist queues to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("app_queues", JSON.stringify(queues));
+    }
+  }, [queues]);
 
   // Simulate real-time updates
   useEffect(() => {
@@ -101,11 +121,14 @@ export function QueueProvider({ children }) {
     setQueues((prevQueues) =>
       prevQueues.map((queue) => {
         if (queue.id === queueId) {
+          // Prevent duplicate join
+          if (queue.items.some((i) => i.userId === userId)) return queue;
+
           const newItem = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID().slice(0, 8),
             userId,
             userName,
-            joinedAt: new Date(),
+            joinedAt: Date.now(), // Use timestamp instead of Date object
             estimatedWaitTime: (queue.items.length + 1) * queue.averageServiceTime,
             status: "waiting",
             position: queue.items.length + 1,
@@ -114,6 +137,29 @@ export function QueueProvider({ children }) {
             ...queue,
             items: [...queue.items, newItem],
             currentQueueLength: queue.items.length + 1,
+          };
+        }
+        return queue;
+      })
+    );
+  };
+
+  const leaveQueue = (queueId, userId) => {
+    setQueues((prevQueues) =>
+      prevQueues.map((queue) => {
+        if (queue.id === queueId) {
+          // Remove the user from the queue
+          const updatedItems = queue.items.filter((item) => item.userId !== userId);
+          // Recalculate positions and estimated wait times
+          const recalculatedItems = updatedItems.map((item, index) => ({
+            ...item,
+            position: index + 1,
+            estimatedWaitTime: (index + 1) * queue.averageServiceTime,
+          }));
+          return {
+            ...queue,
+            items: recalculatedItems,
+            currentQueueLength: recalculatedItems.length,
           };
         }
         return queue;
@@ -152,8 +198,34 @@ export function QueueProvider({ children }) {
     );
   };
 
-  const getQueueById = (queueId) => {
-    return queues.find((q) => q.id === queueId);
+  const getQueueById = (queueId) => queues.find((q) => q.id === queueId);
+
+  const getBusinessQueues = (businessId) => {
+    return queues.filter((q) => q.businessId === businessId);
+  };
+
+  const createQueue = (businessId, businessName, queueName, category, averageServiceTime) => {
+    const newQueue = {
+      id: `q_${Math.random().toString(36).substr(2, 9)}`,
+      businessId,
+      businessName,
+      queueName,
+      category,
+      currentQueueLength: 0,
+      averageServiceTime,
+      isOpen: true,
+      items: [],
+    };
+    setQueues((prev) => [...prev, newQueue]);
+    return newQueue;
+  };
+
+  const toggleQueueStatus = (queueId) => {
+    setQueues((prevQueues) =>
+      prevQueues.map((queue) =>
+        queue.id === queueId ? { ...queue, isOpen: !queue.isOpen } : queue
+      )
+    );
   };
 
   const getUserPosition = (queueId, userId) => {
@@ -169,9 +241,13 @@ export function QueueProvider({ children }) {
         queues,
         addQueue,
         joinQueue,
+        leaveQueue,
         callNext,
         completeService,
         getQueueById,
+        getBusinessQueues,
+        createQueue,
+        toggleQueueStatus,
         getUserPosition,
       }}
     >
