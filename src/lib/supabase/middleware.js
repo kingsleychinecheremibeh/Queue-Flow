@@ -49,14 +49,14 @@ export const updateSession = async (request) => {
   const url = request.nextUrl.clone();
 
   // Protect dashboard: If no user, kick to login
-  if (!user && url.pathname.startsWith('/dashboard')) {
+  if (!user && url.pathname.startsWith('/business/dashboard')) {
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
   // Prevent logged-in users from seeing Auth pages
   if (user && (url.pathname === '/login' || url.pathname === '/signup')) {
-    url.pathname = '/dashboard';
+    url.pathname = '/business/dashboard';
     return NextResponse.redirect(url);
   }
 
