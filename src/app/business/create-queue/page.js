@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useQueue } from '@/context/QueueContext';
-import { ArrowLeft, Sparkles, Clock, Tag, Loader2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Clock, Tag, Loader2, ShieldAlert, Activity } from 'lucide-react';
 
 export default function CreateQueue() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function CreateQueue() {
   const { createQueue } = useQueue();
   const [isLoading, setIsLoading] = useState(false);
   
+  // YOUR LOGIC: State remains exactly as provided
   const [formData, setFormData] = useState({
     queue_name: '',
     category: user?.category || '', 
@@ -36,17 +37,16 @@ export default function CreateQueue() {
 
     setIsLoading(true);
     try {
-      // Pass a single object to match the QueueContext signature
+      // YOUR LOGIC: Signature matches your context exactly
       const { error } = await createQueue({
         queue_name: formData.queue_name,
         category: formData.category,
         average_service_time: formData.average_service_time,
         business_name: user?.business_name || user?.full_name,
-        is_open: true // Start the queue as open by default
+        is_open: true 
       });
 
       if (error) throw error;
-
       router.push('/business/dashboard');
     } catch (error) {
       console.error("Error creating queue:", error);
@@ -56,31 +56,35 @@ export default function CreateQueue() {
     }
   };
 
+  // TECHNICAL SKIN: Auth Loading State
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a]">
+        <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-          <p className="font-bold text-gray-400 text-sm uppercase tracking-widest">Verifying Profile</p>
+          <p className="font-bold text-zinc-600 text-[10px] uppercase tracking-[0.3em]">Authenticating_Session</p>
         </div>
       </div>
     );
   }
 
+  // TECHNICAL SKIN: Restricted Access State
   if (!user || !user.is_business) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="text-center bg-white p-8 rounded-3xl shadow-sm border border-gray-100 max-w-sm w-full">
-          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Tag className="w-8 h-8" />
+      <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] p-6">
+        <div className="text-center bg-[#0f0f0f] p-10 border border-zinc-900 max-w-sm w-full rounded-lg">
+          <div className="w-16 h-16 bg-red-950/20 text-red-500 border border-red-900/50 rounded flex items-center justify-center mx-auto mb-6">
+            <ShieldAlert className="w-8 h-8" />
           </div>
-          <p className="text-gray-900 font-black text-xl uppercase tracking-tight">Restricted Access</p>
-          <p className="text-sm text-gray-400 mt-2 font-medium">Only business accounts can launch and manage live queues.</p>
+          <p className="text-white font-black text-xl uppercase tracking-tighter">Access Denied</p>
+          <p className="text-xs text-zinc-500 mt-4 font-bold uppercase tracking-widest leading-relaxed">
+            Only verified business nodes can initialize live queues.
+          </p>
           <button 
             onClick={() => router.push('/')}
-            className="mt-6 w-full py-3 bg-gray-900 text-white rounded-xl font-bold text-sm transition-transform active:scale-95"
+            className="mt-8 w-full py-3 bg-white text-black font-black text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95"
           >
-            Return Home
+            Return to Root
           </button>
         </div>
       </div>
@@ -88,36 +92,40 @@ export default function CreateQueue() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50/50">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#0a0a0a] text-zinc-400 font-sans selection:bg-blue-600">
+      {/* HEADER: Technical Sub-navigation */}
+      <header className="border-b border-zinc-900 bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
           <button
             onClick={() => router.push('/business/dashboard')}
-            className="flex items-center gap-2 text-gray-400 hover:text-blue-600 transition-colors font-bold text-sm group uppercase tracking-widest"
+            className="flex items-center gap-2 text-zinc-500 hover:text-white transition-colors font-bold text-[10px] group uppercase tracking-widest"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            <span>Dashboard</span>
+            <span>Back to Terminal</span>
           </button>
-          <div className="px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-tighter">
-            Queue Builder v1.0
+          <div className="px-3 py-1 border border-blue-900/50 bg-blue-900/10 text-blue-500 rounded text-[9px] font-black uppercase tracking-widest">
+            Queue_Builder_v1.0
           </div>
         </div>
       </header>
 
-      <div className="max-w-xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-[2.5rem] shadow-xl shadow-blue-900/5 p-10 border border-white">
-          <div className="mb-10 text-center">
-            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-              <Sparkles className="w-8 h-8 text-white" />
+      <div className="max-w-2xl mx-auto px-6 py-16">
+        <div className="bg-[#0f0f0f] border border-zinc-900 p-8 md:p-12 rounded-lg shadow-2xl shadow-black">
+          
+          <div className="mb-12">
+            <div className="flex items-center gap-3 mb-2">
+              <Activity className="text-blue-600" size={20} />
+              <h1 className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em]">Initialize_Node</h1>
             </div>
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">Launch Queue</h1>
-            <p className="text-gray-400 font-medium mt-1">Configure your live service point</p>
+            <h2 className="text-3xl font-black text-white tracking-tighter uppercase">Launch New Queue</h2>
+            <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest mt-2">Configure live service parameters</p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-10">
+            {/* INPUT: Display Name */}
             <div className="space-y-3">
-              <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-                Display Name
+              <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">
+                Display Designation
               </label>
               <input
                 type="text"
@@ -125,73 +133,85 @@ export default function CreateQueue() {
                 required
                 value={formData.queue_name}
                 onChange={handleChange}
-                placeholder="e.g., Express Counter, VIP Lounge"
-                className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white transition-all outline-none font-bold text-gray-800 placeholder:text-gray-300 shadow-inner"
+                placeholder="e.g., EXPRESS_COUNTER_01"
+                className="w-full px-5 py-4 bg-[#111111] border border-zinc-800 rounded text-white focus:border-blue-600 transition-all outline-none font-bold text-sm placeholder:text-zinc-800"
               />
             </div>
 
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-                Category
-              </label>
-              <div className="relative">
-                <select
-                  name="category"
-                  required
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white transition-all outline-none appearance-none font-bold text-gray-800 shadow-inner"
-                >
-                  <option value="">Select an industry</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Restaurant">Restaurant</option>
-                  <option value="Retail">Retail</option>
-                  <option value="Bank">Bank</option>
-                  <option value="Post Office">Post Office</option>
-                  <option value="Other">Other</option>
-                </select>
-                <Tag className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 pointer-events-none" />
+            {/* GRID: Category & Service Time */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">
+                  Sector Classification
+                </label>
+                <div className="relative">
+                  <select
+                    name="category"
+                    required
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full px-5 py-4 bg-[#111111] border border-zinc-800 rounded text-white focus:border-blue-600 transition-all outline-none appearance-none font-bold text-sm cursor-pointer"
+                  >
+                    <option value="">Select Category</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Restaurant">Restaurant</option>
+                    <option value="Retail">Retail</option>
+                    <option value="Bank">Bank</option>
+                    <option value="Post Office">Post Office</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <Tag className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-700 pointer-events-none" />
+                </div>
               </div>
-            </div>
 
-            <div className="space-y-3">
-              <label className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-                Avg. Service Time
-              </label>
-              <div className="relative group">
-                <input
-                  type="number"
-                  name="average_service_time"
-                  value={formData.average_service_time}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl focus:border-blue-500 focus:bg-white transition-all outline-none font-bold text-gray-800 shadow-inner"
-                />
-                <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                  <span className="text-gray-300 text-[10px] font-black uppercase">minutes</span>
-                  <Clock className="w-4 h-4 text-gray-300" />
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em] ml-1">
+                  Est. Cycle Time
+                </label>
+                <div className="relative group">
+                  <input
+                    type="number"
+                    name="average_service_time"
+                    value={formData.average_service_time}
+                    onChange={handleChange}
+                    min="1"
+                    className="w-full px-5 py-4 bg-[#111111] border border-zinc-800 rounded text-white focus:border-blue-600 transition-all outline-none font-bold text-sm"
+                  />
+                  <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+                    <span className="text-zinc-700 text-[9px] font-black uppercase tracking-tighter">MINS</span>
+                    <Clock className="w-4 h-4 text-zinc-700" />
+                  </div>
                 </div>
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={`w-full py-5 rounded-[1.5rem] font-black text-white shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${
-                isLoading 
-                  ? 'bg-blue-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
-              }`}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>INITIALIZING...</span>
-                </>
-              ) : (
-                'GO LIVE NOW'
-              )}
-            </button>
+            {/* SUBMIT BUTTON */}
+            <div className="pt-6">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className={`w-full py-5 rounded font-black text-[11px] uppercase tracking-[0.3em] transition-all active:scale-[0.98] flex items-center justify-center gap-3 ${
+                  isLoading 
+                    ? 'bg-blue-900/50 text-blue-300 cursor-not-allowed border border-blue-900/50' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-900/20'
+                }`}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Deploying_Node...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    <span>Deploy Live Queue</span>
+                  </>
+                )}
+              </button>
+              <p className="mt-6 text-[9px] text-zinc-700 text-center font-bold uppercase tracking-[0.2em]">
+                Verified Connection: Secure_Encrypted_Protocol
+              </p>
+            </div>
           </form>
         </div>
       </div>

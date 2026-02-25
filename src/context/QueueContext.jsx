@@ -1,16 +1,20 @@
+
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./AuthContext";
 
 const QueueContext = createContext(undefined);
 
+// Initialize Supabase client once
+const supabase = createClient();
+
 export function QueueProvider({ children }) {
   const [queues, setQueues] = useState([]);
   const { user } = useAuth();
-  const channelRef = useRef(null);
 
+  // 1. Stable sorting helper
   const safeSort = useCallback((items) => {
     return [...(items || [])].sort((a, b) => {
       const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
@@ -19,40 +23,64 @@ export function QueueProvider({ children }) {
     });
   }, []);
 
-  // INITIAL LOAD
-  useEffect(() => {
-    async function initFetch() {
-      const { data, error } = await supabase
-        .from('queues')
-        .select(`*, items:queue_entries (*, profiles:user_id (full_name))`)
-        .eq('is_archived', false)
-        .order('created_at', { ascending: true });
+  // 2. Stable data fetcher
+  const refreshQueueData = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('queues')
+      .select(`*, items:queue_entries (*, profiles:user_id (full_name, phone))`)
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true });
 
-      if (!error && data) {
-        const formatted = data.map(q => ({ ...q, items: safeSort(q.items) }));
-        setQueues(formatted);
-      }
+    if (!error && data) {
+      const formatted = data.map(q => ({ 
+        ...q, 
+        items: safeSort(q.items) 
+      }));
+      setQueues(formatted);
     }
-    initFetch();
   }, [safeSort]);
 
-  // REALTIME SYNC
+  // 3. Initial Load - Fixed to avoid cascading render warning
   useEffect(() => {
     let isMounted = true;
+
+    async function fetchData() {
+      await refreshQueueData();
+    }
+
+    if (isMounted) {
+      fetchData();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [refreshQueueData]);
+
+  // 4. Real-time Subscription
+  useEffect(() => {
+    let isMounted = true;
+
     const channel = supabase.channel('queue-global-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_entries' }, async (payload) => {
-        if (!isMounted) return;
-        // ... (existing entry notification/logic remains same)
-        fetchUpdatedEntries(payload); 
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queues' }, (payload) => {
-        if (!isMounted) return;
-        handleQueueChange(payload);
-      })
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'queue_entries' }, 
+        async () => {
+          if (isMounted) await refreshQueueData();
+        }
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'queues' }, 
+        async () => {
+          if (isMounted) await refreshQueueData();
+        }
+      )
       .subscribe();
 
-    return () => { isMounted = false; supabase.removeChannel(channel); };
-  }, [user?.id]);
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [refreshQueueData]);
 
   // --- API METHODS ---
 
@@ -75,22 +103,16 @@ export function QueueProvider({ children }) {
       .select()
       .single();
 
-    if (error) {
-      console.error("Critical Create Error:", error.message);
-      return { error };
-    }
-
+    if (error) return { error };
     setQueues(prev => [...prev, { ...data, items: [] }]);
     return { data, error: null };
   };
 
   const archiveQueue = async (queueId) => {
     setQueues(prev => prev.filter(q => q.id !== queueId));
-    await supabase.from('queues').update({ 
-      is_archived: true, 
-      is_open: false, 
-      archived_at: new Date().toISOString() 
-    }).eq('id', queueId);
+    await supabase.from('queues')
+      .update({ is_archived: true, is_open: false, archived_at: new Date().toISOString() })
+      .eq('id', queueId);
   };
 
   const toggleQueueStatus = async (queueId, isOpen) => {
@@ -99,20 +121,18 @@ export function QueueProvider({ children }) {
   };
 
   const completeService = async (entryId) => {
-    await supabase.from('queue_entries').update({ 
-      status: 'completed', 
-      completed_at: new Date().toISOString() 
-    }).eq('id', entryId);
+    await supabase.from('queue_entries')
+      .update({ status: 'completed', completed_at: new Date().toISOString() })
+      .eq('id', entryId);
   };
 
   const callNext = async (queueId) => {
     const queue = queues.find(q => q.id === queueId);
     const nextItem = queue?.items?.find(i => i.status === 'waiting');
     if (nextItem) {
-      await supabase.from('queue_entries').update({ 
-        status: 'serving', 
-        called_at: new Date().toISOString() 
-      }).eq('id', nextItem.id);
+      await supabase.from('queue_entries')
+        .update({ status: 'serving', called_at: new Date().toISOString() })
+        .eq('id', nextItem.id);
     }
   };
 
@@ -129,7 +149,8 @@ export function QueueProvider({ children }) {
 
   const leaveQueue = async (queueId) => {
     if (!user) return;
-    await supabase.from('queue_entries').delete()
+    await supabase.from('queue_entries')
+      .delete()
       .eq('queue_id', queueId)
       .eq('user_id', user.id)
       .neq('status', 'completed');
