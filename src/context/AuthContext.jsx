@@ -100,12 +100,21 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      router.push('/dashboard');
+
+      // 1. Get user type from metadata
+      const isBusiness = data.user?.user_metadata?.is_business === true;
+
+      // 2. Redirect to the ACTUAL folder paths
+      const targetPath = isBusiness ? '/business/dashboard' : '/user/dashboard';
+      
+      console.log("Redirecting to:", targetPath);
+      router.push(targetPath);
+
     } catch (err) {
       console.error("Login error:", err.message);
-      return {error: err};
+      return { error: err };
     } finally {
       setLoading(false);
     }

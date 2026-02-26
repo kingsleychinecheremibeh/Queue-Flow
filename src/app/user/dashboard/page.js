@@ -52,7 +52,7 @@ export default function UserDashboard() {
     q.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!user || queueLoading || actionLoading) {
+  if (!user || actionLoading) {
     return <SystemLoading />;
   }
 

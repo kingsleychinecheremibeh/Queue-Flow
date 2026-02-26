@@ -1,7 +1,6 @@
-
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "./AuthContext";
 
@@ -13,6 +12,9 @@ const supabase = createClient();
 export function QueueProvider({ children }) {
   const [queues, setQueues] = useState([]);
   const { user } = useAuth();
+  
+  // Use a ref to track if the component is mounted to prevent state updates after unmount
+  const isMounted = useRef(true);
 
   // 1. Stable sorting helper
   const safeSort = useCallback((items) => {
@@ -25,59 +27,59 @@ export function QueueProvider({ children }) {
 
   // 2. Stable data fetcher
   const refreshQueueData = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('queues')
-      .select(`*, items:queue_entries (*, profiles:user_id (full_name, phone))`)
-      .eq('is_archived', false)
-      .order('created_at', { ascending: true });
+    if (!isMounted.current) return;
 
-    if (!error && data) {
-      const formatted = data.map(q => ({ 
-        ...q, 
-        items: safeSort(q.items) 
-      }));
-      setQueues(formatted);
+    try {
+      const { data, error } = await supabase
+        .from('queues')
+        .select(`
+          *,
+          items:queue_entries (
+            *,
+            profiles:user_id (full_name, phone)
+          )
+        `)
+        .eq('is_archived', false)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      if (data && isMounted.current) {
+        const formatted = data.map(q => ({ 
+          ...q, 
+          items: safeSort(q.items) 
+        }));
+        setQueues(formatted);
+      }
+    } catch (err) {
+      console.error("Queue Sync Error:", err.message);
     }
   }, [safeSort]);
 
-  // 3. Initial Load - Fixed to avoid cascading render warning
+  // 3. Combined Initial Load & Real-time Subscription
+  // This structure fixes the "Cascading Render" warning by isolating the async call
   useEffect(() => {
-    let isMounted = true;
+    isMounted.current = true;
 
-    async function fetchData() {
+    const initialize = async () => {
       await refreshQueueData();
-    }
-
-    if (isMounted) {
-      fetchData();
-    }
-
-    return () => {
-      isMounted = false;
     };
-  }, [refreshQueueData]);
 
-  // 4. Real-time Subscription
-  useEffect(() => {
-    let isMounted = true;
+    initialize();
 
     const channel = supabase.channel('queue-global-sync')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'queue_entries' }, 
-        async () => {
-          if (isMounted) await refreshQueueData();
-        }
+        refreshQueueData
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'queues' }, 
-        async () => {
-          if (isMounted) await refreshQueueData();
-        }
+        refreshQueueData
       )
       .subscribe();
 
     return () => {
-      isMounted = false;
+      isMounted.current = false;
       supabase.removeChannel(channel);
     };
   }, [refreshQueueData]);
@@ -104,6 +106,8 @@ export function QueueProvider({ children }) {
       .single();
 
     if (error) return { error };
+    
+    // Update local state immediately for snappy UI
     setQueues(prev => [...prev, { ...data, items: [] }]);
     return { data, error: null };
   };
@@ -172,7 +176,8 @@ export function QueueProvider({ children }) {
   return (
     <QueueContext.Provider value={{ 
       queues, createQueue, archiveQueue, toggleQueueStatus, 
-      completeService, callNext, joinQueue, leaveQueue, getQueueData 
+      completeService, callNext, joinQueue, leaveQueue, getQueueData,
+      refreshQueueData 
     }}>
       {children}
     </QueueContext.Provider>
