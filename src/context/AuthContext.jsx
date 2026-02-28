@@ -3,9 +3,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { signUpUser, registerBusiness, loginUser, logoutUser } from "@/lib/auth-service";
 
 const AuthContext = createContext(undefined);
-
 
 const supabase = createClient();
 
@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // 3. Define the function to sync user data
+  // Sync user data from database
   const syncUser = async (session) => {
     if (!session?.user) {
       setUser(null);
@@ -23,7 +23,6 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      // Try to get the profile from the database
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -32,7 +31,6 @@ export function AuthProvider({ children }) {
 
       if (error) {
         console.warn("Profile not found, using session metadata instead");
-        // Fallback to basic session data (metadata)
         setUser({
           id: session.user.id,
           email: session.user.email,
@@ -51,12 +49,10 @@ export function AuthProvider({ children }) {
   };
 
   useEffect(() => {
-    // 4. Run initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
       syncUser(session);
     });
 
-    // 5. Listen for Auth changes (Login, Logout, Signup)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       syncUser(session);
     });
@@ -65,104 +61,52 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signUp = async (email, password, phone, name) => {
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            phone_number: phone,
-            full_name: name,
-          },
-        },
-      });
-
-      if (error) throw error;
-      
-      // If auto-login is enabled on Supabase, sync right away
-      if (data?.session) {
-        await syncUser(data.session);
-      } else {
-        alert("Check your email for confirmation link!");
-      }
-
-      return { data, error: null };
-    } catch (err) {
-      console.error("Signup error:", err.message);
-      return { data: null, error: err };
-    } finally {
+    const result = await signUpUser({ email, password, phone, name });
+    
+    if (result.success && result.requiresConfirmation) {
+      // Don't redirect, show success message in component
       setLoading(false);
+    } else if (result.success) {
+      // Auto-login enabled, sync will handle redirect
+      await syncUser(result.data.session);
     }
-  }
+    
+    return result;
+  };
 
-  const registerBusiness = async (name, email, password, businessName, category) => {
-    try {
-      setLoading(true);
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-            business_name: businessName,
-            category: category,
-            is_business: true,
-          },
-        },
-      });
-
-      if (error) throw error;
-      
-      // If auto-login is enabled on Supabase, sync right away
-      if (data?.session) {
-        await syncUser(data.session);
-      }
-
-      return { data, error: null };
-    } catch (err) {
-      console.error("Business registration error:", err.message);
-      return { data: null, error: err };
-    } finally {
+  const registerBusinessUser = async (name, email, password, businessName, category) => {
+    const result = await registerBusiness({ email, password, name, businessName, category });
+    
+    if (result.success && result.requiresConfirmation) {
       setLoading(false);
+    } else if (result.success) {
+      await syncUser(result.data.session);
     }
-  }
+    
+    return result;
+  };
 
   const login = async (email, password) => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-
-      // 1. Get user type from metadata
-      const isBusiness = data.user?.user_metadata?.is_business === true;
-
-      // 2. Redirect to the ACTUAL folder paths
+    const result = await loginUser({ email, password });
+    
+    if (result.success) {
+      // Get user type from the synced user
+      const isBusiness = result.data.user?.user_metadata?.is_business === true;
       const targetPath = isBusiness ? '/business/dashboard' : '/user/dashboard';
-      
-      console.log("Redirecting to:", targetPath);
       router.push(targetPath);
-
-    } catch (err) {
-      console.error("Login error:", err.message);
-      return { error: err };
-    } finally {
-      setLoading(false);
     }
+    
+    return result;
   };
 
   const logOut = async () => {
-    setLoading(true);
-    await supabase.auth.signOut();
+    await logoutUser();
     setUser(null);
-    setLoading(false);
     router.push("/");
   };
 
-return (
-    <AuthContext.Provider value={{ user, loading, signUp, registerBusiness, login, logOut }}>
+  return (
+    <AuthContext.Provider value={{ user, loading, signUp, registerBusiness: registerBusinessUser, login, logOut }}>
       {!loading ? children : (
         <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'black', color: 'white'}}>
            <p>Loading QueueFlow...</p>
