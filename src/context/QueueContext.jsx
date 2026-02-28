@@ -13,7 +13,7 @@ export function QueueProvider({ children }) {
   const [queues, setQueues] = useState([]);
   const { user } = useAuth();
   
-  // Use a ref to track if the component is mounted to prevent state updates after unmount
+// Use a ref to track
   const isMounted = useRef(true);
 
   // 1. Stable sorting helper
@@ -45,6 +45,13 @@ export function QueueProvider({ children }) {
       if (error) throw error;
 
       if (data && isMounted.current) {
+        // Debug: Log the average_service_time for each queue
+        console.log("=== QUEUE DATA DEBUG ===");
+        data.forEach(q => {
+          console.log(`Queue: ${q.queue_name} | average_service_time: ${q.average_service_time} (type: ${typeof q.average_service_time})`);
+        });
+        console.log("========================");
+        
         const formatted = data.map(q => ({ 
           ...q, 
           items: safeSort(q.items) 

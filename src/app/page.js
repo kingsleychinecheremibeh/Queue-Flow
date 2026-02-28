@@ -59,7 +59,7 @@ export default function Home() {
             <Link href="/signup" className="w-full sm:w-auto px-10 py-4 bg-blue-600 text-white font-bold uppercase tracking-widest text-sm hover:bg-blue-700 transition-all active:scale-95">
               Get Started Now
             </Link>
-            <Link href="/business/register" className="w-full sm:w-auto px-10 py-4 border border-zinc-800 text-white font-bold uppercase tracking-widest text-sm hover:bg-zinc-900 transition-all">
+            <Link href="/business-register" className="w-full sm:w-auto px-10 py-4 border border-zinc-800 text-white font-bold uppercase tracking-widest text-sm hover:bg-zinc-900 transition-all">
               For Businesses
             </Link>
           </div>

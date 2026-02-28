@@ -97,6 +97,39 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const registerBusiness = async (name, email, password, businessName, category) => {
+    try {
+      setLoading(true);
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            business_name: businessName,
+            category: category,
+            is_business: true,
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      // If auto-login is enabled on Supabase, sync right away
+      if (data?.session) {
+        await syncUser(data.session);
+      }
+
+      return { data, error: null };
+    } catch (err) {
+      console.error("Business registration error:", err.message);
+      return { data: null, error: err };
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const login = async (email, password) => {
     try {
       setLoading(true);
@@ -128,10 +161,10 @@ export function AuthProvider({ children }) {
     router.push("/");
   };
 
-  return (
-    <AuthContext.Provider value={{ user, loading, signUp, login, logOut }}>
+return (
+    <AuthContext.Provider value={{ user, loading, signUp, registerBusiness, login, logOut }}>
       {!loading ? children : (
-        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'white' }}>
+        <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'black', color: 'white'}}>
            <p>Loading QueueFlow...</p>
         </div>
       )}

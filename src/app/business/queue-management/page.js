@@ -65,7 +65,7 @@ export default function QueueManagement() {
       <div className="min-h-screen flex items-center justify-center bg-[#0a0a0a] text-center p-4">
         <div>
           <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-zinc-600 font-bold uppercase tracking-widest text-[10px] mb-4">Finding_Node_Data...</p>
+          <p className="text-zinc-600 font-bold uppercase tracking-widest text-[10px] mb-4">Finding Queue Data...</p>
           <button onClick={() => router.push('/business/dashboard')} className="text-blue-500 font-black uppercase text-[10px] tracking-[0.3em] hover:text-white transition-colors">
             Return to Dashboard
           </button>
@@ -115,7 +115,7 @@ export default function QueueManagement() {
               <div className="p-10">
                 <div className="flex items-center justify-between mb-10">
                   <h2 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em] flex items-center gap-3">
-                    <Activity size={14} className="text-blue-500" /> Current_Processing_Node
+                    <Activity size={14} className="text-blue-500" /> Current Processing
                   </h2>
                   {isProcessing && <Loader2 size={16} className="text-blue-500 animate-spin" />}
                 </div>
@@ -128,12 +128,12 @@ export default function QueueManagement() {
                         {businessQueue.items.filter(i => i.status === 'completed').length + 1}
                       </div>
                       <h3 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">
-                        {currentCustomer.profiles?.full_name || "Guest_Protocol"}
+                        {currentCustomer.profiles?.full_name || "Guest Protocol"}
                       </h3>
                       <p className="text-zinc-600 font-bold uppercase text-[10px] tracking-[0.4em]">
-                        Service_Start: {currentCustomer.called_at 
+                        Service Start: {currentCustomer.called_at 
                           ? new Date(currentCustomer.called_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
-                          : "Timestamp_Pending"}
+                          : "Timestamp Pending"}
                       </p>
                     </div>
 
@@ -144,11 +144,11 @@ export default function QueueManagement() {
                         className="flex items-center justify-center gap-3 py-5 bg-blue-600 text-white rounded font-black text-[11px] uppercase tracking-[0.3em] hover:bg-blue-700 transition-all active:scale-[0.98] disabled:opacity-50"
                       >
                         <CheckCircle size={18} />
-                        Complete_Task
+                        Complete Task
                       </button>
                       <button className="flex items-center justify-center gap-3 py-5 bg-[#111111] border border-zinc-800 text-zinc-400 rounded font-black text-[11px] uppercase tracking-[0.3em] hover:text-white hover:border-zinc-600 transition-all active:scale-[0.98]">
                         <Phone size={18} />
-                        Send_Alert
+                        Send Alert
                       </button>
                     </div>
                   </div>
@@ -162,11 +162,11 @@ export default function QueueManagement() {
                       )}
                     </div>
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-2">
-                      {businessQueue.is_open ? "Node_Idle" : "Node_Offline"}
+                      {businessQueue.is_open ? "Queue_Idle" : "Queue_Offline"}
                     </h3>
                     <p className="text-zinc-600 font-medium mb-10 max-w-xs mx-auto text-[11px] uppercase tracking-wider leading-relaxed">
                       {businessQueue.is_open 
-                        ? "Execute 'Call Next' to pull the highest priority entry from the stack." 
+                        ? "Execute 'Call Next' to pull the highest priority entry from the Queue." 
                         : "System offline. Re-initialize via dashboard to resume traffic."}
                     </p>
                     {businessQueue.is_open && waitingCustomers.length > 0 && (
@@ -176,7 +176,7 @@ export default function QueueManagement() {
                         className="px-12 py-4 bg-white text-black rounded font-black text-[11px] uppercase tracking-[0.4em] hover:bg-blue-600 hover:text-white transition-all active:scale-95 flex items-center gap-3 mx-auto"
                       >
                         <Play size={16} className="fill-current" />
-                        Execute_Call_Next
+                        Call Next
                       </button>
                     )}
                   </div>
@@ -187,14 +187,14 @@ export default function QueueManagement() {
             {/* QUICK STATS */}
             <div className="grid grid-cols-2 gap-6">
               <div className="bg-[#0f0f0f] p-8 rounded border border-zinc-900">
-                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-3">Buffer_Count</p>
+                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-3">Buffer Count</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-4xl font-black text-white tracking-tighter">{waitingCustomers.length}</p>
                   <span className="text-[10px] font-bold text-blue-600 uppercase">Users</span>
                 </div>
               </div>
               <div className="bg-[#0f0f0f] p-8 rounded border border-zinc-900">
-                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-3">Est_Processing</p>
+                <p className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.3em] mb-3">Est. Processing</p>
                 <div className="flex items-baseline gap-2">
                   <p className="text-4xl font-black text-white tracking-tighter">
                     {waitingCustomers.length * (businessQueue.average_service_time || 5)}
@@ -209,7 +209,7 @@ export default function QueueManagement() {
           <div className="lg:col-span-5">
             <div className="bg-[#0f0f0f] rounded-lg border border-zinc-900 flex flex-col h-[700px] overflow-hidden">
               <div className="p-6 border-b border-zinc-900 flex items-center justify-between bg-[#111111]">
-                <h2 className="font-black text-white uppercase text-[10px] tracking-[0.4em]">Queue_Stack</h2>
+                <h2 className="font-black text-white uppercase text-[10px] tracking-[0.4em]">Queue Stack</h2>
                 <span className="px-3 py-1 bg-blue-600/10 border border-blue-600/30 text-blue-500 rounded text-[9px] font-black">
                   {waitingCustomers.length} ENTRIES
                 </span>
@@ -220,7 +220,7 @@ export default function QueueManagement() {
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-20">
                     <UserPlus size={40} className="mb-4" />
                     <p className="text-[10px] font-black uppercase tracking-[0.5em]">
-                      Stack_Empty
+                      Stack Empty
                     </p>
                   </div>
                 ) : (
@@ -243,7 +243,7 @@ export default function QueueManagement() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">Wait_Time</p>
+                        <p className="text-[8px] font-black text-zinc-700 uppercase tracking-widest">Wait Time</p>
                         <p className="text-xs font-black text-blue-500 mt-1">
                           {index * (businessQueue.average_service_time || 5)}M
                         </p>

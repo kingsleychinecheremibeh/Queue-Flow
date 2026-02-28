@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
 import {
   TrendingUp, Users, Clock, ArrowLeft,
   BarChart3, Download, Lightbulb, Loader2, Zap, ShieldCheck, Activity
@@ -12,11 +11,12 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, BarChart, Bar
 } from "recharts";
+import { createClient } from "@/lib/supabase/client";
+const supabase = createClient();
 
 export default function BusinessAnalytics() {
   const { user } = useAuth();
   const router = useRouter();
-  
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState([]);
   const [hourlyData, setHourlyData] = useState([]);
