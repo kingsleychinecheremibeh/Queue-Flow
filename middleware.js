@@ -44,9 +44,18 @@ export async function middleware(request) {
 
   // 4. --- THE REDIRECT LOGIC (The Debug Zone) ---
 
+  // Define public routes that should NOT be protected
+  const publicBusinessRoutes = ['/business-register'];
+  const isPublicBusinessRoute = publicBusinessRoutes.some(route => url.pathname.startsWith(route));
+
   // Protect Dashboard: If no user, kick to login
   // Note: We check both /business and /user prefixes here
+  // But exclude public routes like /business-register
   if (!user && (url.pathname.startsWith('/business') || url.pathname.startsWith('/user'))) {
+    // Allow access to public business routes without authentication
+    if (isPublicBusinessRoute) {
+      return supabaseResponse;
+    }
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
